@@ -1,8 +1,10 @@
+#### What's Shitty?
 
-Shitty lisp is a Lisp written in Python out of boredom. As the name suggests, it is quite a piece of shit. I'll be
-tinkering with it to make it less shitty over time but I assure you it will retain some amount of shit regardless.
+Shitty is a Lisp interpreter I pieced together out of boredom. It is implemented in Python and as the name suggests, it
+is a piece of shit. I don't have much experience writing interpreters and such so you can expect that a certain degree
+of shittiness will persist even as I continue to tinker and try to improve it.
 
-Here's what sort of works so far:
+Here's what (sort of) works so far:
 
 - Support for various basic types (e.g. nil, boolean, integer, decimal, and string).
 - Standard functions include:
@@ -10,8 +12,7 @@ Here's what sort of works so far:
   - Built in string concatenation (`str`)
 - Support for conditional evaluation using `if`; arguments are lazily evaluated.
 
-TODO
-----
+#### TODO
 
 - Add `let`, `def` and `defn`
 - Support some basic I/O functionality
