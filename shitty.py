@@ -148,6 +148,10 @@ class Tokenizer(object):
     def __iter__(self):
         return self
 
+    @staticmethod
+    def is_special_char(char):
+        return char.isspace() or char in '()"'
+
     def get_quoted_string(self):
         buf = []
         prevchar = None
@@ -169,7 +173,7 @@ class Tokenizer(object):
 
         while True:
             next_char = self.char_iter.peek()
-            if not next_char.isspace() and next_char != ')':
+            if not self.is_special_char(next_char):
                 buf.append(self.char_iter.next())
                 continue
 
@@ -182,13 +186,14 @@ class Tokenizer(object):
 
     def next(self):
         for char in self.char_iter:
-            if char == '(':
-                return Token(TokenTypes.LPAREN)
-            elif char == ')':
-                return Token(TokenTypes.RPAREN)
-            elif char == '"':
-                return Token(TokenTypes.STRING, self.get_quoted_string())
-            elif not char.isspace():
+            if self.is_special_char(char):
+                if char == '(':
+                    return Token(TokenTypes.LPAREN)
+                elif char == ')':
+                    return Token(TokenTypes.RPAREN)
+                elif char == '"':
+                    return Token(TokenTypes.STRING, self.get_quoted_string())
+            else:
                 self.char_iter.put(char)
                 return self.get_full_token()
 
@@ -273,7 +278,7 @@ if __name__ == '__main__':
             expr = raw_input('shitty> ')
             while expr.count('(') != expr.count(')'):
                 expr += ' ' + raw_input(' .... > ')
-        except KeyboardInterrupt:
+        except (EOFError, KeyboardInterrupt):
             print('Exiting!')
             break
 
