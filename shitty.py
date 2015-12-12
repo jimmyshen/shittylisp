@@ -27,59 +27,95 @@ class TokenTypes:
     RPAREN = ')'
     KEYWORD = 'keyword'
     IDENT = 'ident'
+    NIL = 'nil'
+    BOOLEAN = 'bool'
     INTEGER = 'int'
     REAL = 'real'
     STRING = 'str'
 
     @classmethod
     def get_non_paren(cls):
-        return (cls.KEYWORD, cls.IDENT, cls.INTEGER, cls.REAL, cls.STRING)
+        return (cls.KEYWORD, cls.IDENT, cls.NIL, cls.BOOLEAN, cls.INTEGER, cls.REAL, cls.STRING)
 
 
 class ExprPatterns:
     IDENT = re.compile(r'^[A-Za-z][A-Za-z0-9_-]*$')
+    NIL = re.compile(r'^nil$')
+    BOOLEAN = re.compile(r'^(true|false)$')
     INTEGER = re.compile(r'^[+-]?\d+$')
     REAL = re.compile(r'^[+-]?\d+\.\d+$')
 
 
 class StdLib:
+    """All Python implementations of functions accept an `evaluator` function as the
+    first argument, which can be used to perform lazy evaluation on arguments"""
+
     @staticmethod
-    def add(*values):
+    def add(_, *values):
         return reduce(operator.add, values)
 
     @staticmethod
-    def subtract(*values):
+    def subtract(_, *values):
         return reduce(operator.sub, values)
 
     @staticmethod
-    def multiply(*values):
+    def multiply(_, *values):
         return reduce(operator.mul, values)
 
     @staticmethod
-    def divide(*values):
+    def divide(_, *values):
         return reduce(operator.div, values)
 
     @staticmethod
-    def concat(*values):
+    def concat(_, *values):
         return ''.join(map(str, values))
 
+    @staticmethod
+    def cond(evaluator, value, true_expr, else_expr=None):
+        value = evaluator(value)
+        if value:
+            return evaluator(true_expr)
 
-Namespace = {
-    '+': StdLib.add,
-    '-': StdLib.subtract,
-    '*': StdLib.multiply,
-    '/': StdLib.divide,
-    'str': StdLib.concat,
-}
+        if else_expr is not None:
+            return evaluator(else_expr)
+
+        return None
 
 
-def lazyresolver(s):
-    global Namespace
+Namespace = {}
 
-    def resolve():
-        return Namespace[s]
 
-    return resolve
+class bind(object):
+    __slots__ = ['func', 'lazy_args']
+
+    def __init__(self, name, func, lazy_args=False):
+        global Namespace
+        Namespace[name] = self
+
+        self.func = func
+        self.lazy_args = lazy_args
+
+    def __call__(self, *args):
+        return self.func(*args)
+
+
+class Resolver(object):
+    __slots__ = ['name']
+
+    def __init__(self, name):
+        self.name = name
+
+    def resolve(self):
+        global Namespace
+        return Namespace[self.name]
+
+
+bind('+', StdLib.add)
+bind('-', StdLib.subtract)
+bind('*', StdLib.multiply)
+bind('/', StdLib.divide)
+bind('str', StdLib.concat)
+bind('if', StdLib.cond, lazy_args=True)
 
 
 class Token(object):
@@ -135,8 +171,10 @@ class PeekableStream(object):
 
 class Tokenizer(object):
     matchers = (
-        (TokenTypes.KEYWORD, lambda s: s in Namespace, lambda s: lazyresolver(s)),
-        (TokenTypes.IDENT, ExprPatterns.IDENT.match, lambda s: lazyresolver(s)),
+        (TokenTypes.NIL, ExprPatterns.NIL.match, lambda _: None),
+        (TokenTypes.BOOLEAN, ExprPatterns.BOOLEAN.match, lambda s: s == 'true'),
+        (TokenTypes.KEYWORD, lambda s: s in Namespace, Resolver),
+        (TokenTypes.IDENT, ExprPatterns.IDENT.match, Resolver),
         (TokenTypes.INTEGER, ExprPatterns.INTEGER.match, int),
         (TokenTypes.REAL, ExprPatterns.REAL.match, float),
     )
@@ -257,18 +295,24 @@ class Parser(object):
         self.expect(TokenTypes.RPAREN)
         return expr
 
+def evaltoken(token):
+    if isinstance(token, ParsedExpr):
+        return evaluate(token)
+    else:
+        return token.value
+
 
 def evaluate(expr):
-    func = expr.func.value()
+    func = expr.func.value.resolve()
     evaluated_args = []
 
-    for arg in expr.args:
-        if isinstance(arg, ParsedExpr):
-            evaluated_args.append(evaluate(arg))
+    for token in expr.args:
+        if func.lazy_args:
+            evaluated_args.append(token)
         else:
-            evaluated_args.append(arg.value)
+            evaluated_args.append(evaltoken(token))
 
-    return func(*evaluated_args)
+    return func(evaltoken, *evaluated_args)
 
 
 if __name__ == '__main__':
