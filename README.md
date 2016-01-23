@@ -9,6 +9,7 @@ Here's what (sort of) works so far:
 - Support for various basic types (e.g. nil, boolean, integer, decimal, and string).
 - Standard functions include:
   - Arithmetic functions (`+`, `-`, `/`, `*`)
+  - Comparison functions (`==`, `!=`, `<=`, `<`, etc.)
   - Built in string concatenation (`str`)
 - Support for conditional evaluation using `if`; arguments are lazily evaluated.
 
