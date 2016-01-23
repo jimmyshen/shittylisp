@@ -67,6 +67,34 @@ class StdLib:
         return reduce(operator.div, values)
 
     @staticmethod
+    def eq(_, a, b):
+        return a == b
+
+    @staticmethod
+    def ne(_, a, b):
+        return a != b
+
+    @staticmethod
+    def lt(_, a, b):
+        return a < b
+
+    @staticmethod
+    def lte(_, a, b):
+        return a <= b
+
+    @staticmethod
+    def gt(_, a, b):
+        return a > b
+
+    @staticmethod
+    def gte(_, a, b):
+        return a >= b
+
+    @staticmethod
+    def not_(_, exp):
+        return (not exp)
+
+    @staticmethod
     def concat(_, *values):
         return ''.join(map(str, values))
 
@@ -86,16 +114,29 @@ Namespace = {}
 
 
 class bind(object):
-    __slots__ = ['func', 'lazy_args']
+    __slots__ = ['func', 'lazy_args', 'arity']
 
-    def __init__(self, name, func, lazy_args=False):
+    def __init__(self, name, func, lazy_args=False, arity=None):
         global Namespace
         Namespace[name] = self
 
         self.func = func
         self.lazy_args = lazy_args
+        self.arity = arity
 
     def __call__(self, *args):
+        arglen = len(args) - 1
+        if isinstance(self.arity, int):
+            if arglen != self.arity:
+                raise Exception('wrong number of arguments; expected {0}'.format(self.arity))
+        elif isinstance(self.arity, basestring):
+            if self.arity not in ('*', '+', '?'):
+                raise Exception('invalid arity spec')
+            elif not (self.arity == '*' or
+                    (self.arity == '+' and arglen >= 1) or
+                    (self.arity == '?' and arglen <= 1)):
+                raise Exception('wrong number of arguments')
+
         return self.func(*args)
 
 
@@ -114,6 +155,13 @@ bind('+', StdLib.add)
 bind('-', StdLib.subtract)
 bind('*', StdLib.multiply)
 bind('/', StdLib.divide)
+bind('==', StdLib.eq, arity=2)
+bind('!=', StdLib.ne, arity=2)
+bind('<', StdLib.lt, arity=2)
+bind('<=', StdLib.lte, arity=2)
+bind('>', StdLib.gt, arity=2)
+bind('>=', StdLib.gte, arity=2)
+bind('not', StdLib.not_, arity=1)
 bind('str', StdLib.concat)
 bind('if', StdLib.cond, lazy_args=True)
 
